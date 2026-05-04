@@ -6,10 +6,29 @@ use App\Models\Client;
 use App\Models\LotteryDraw;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Exception;
 
 class LotteryService
 {
+    /**
+     * جلب قائمة السحوبات مع إمكانية الفلترة بالتاريخ.
+     *
+     * @param array $filters
+     * @return LengthAwarePaginator
+     */
+    public function getPaginatedDraws(array $filters = []): LengthAwarePaginator
+    {
+        $query = LotteryDraw::with('client')->latest();
+
+        // فلترة النتائج بناءً على التاريخ إذا تم تمريره
+        if (!empty($filters['date'])) {
+            $query->whereDate('created_at', $filters['date']);
+        }
+
+        return $query->paginate($filters['per_page'] ?? 15);
+    }
+
     /**
      * إجراء عملية السحب العشوائي بآلية آمنة ضد التزامن.
      *
@@ -18,43 +37,34 @@ class LotteryService
      */
     public function conductDraw(): LotteryDraw
     {
-        // استخدام قفل (Lock) لمنع أي موظف آخر من إجراء سحب في نفس اللحظة (لمدة 5 ثوانٍ)
         $lock = Cache::lock('lottery_draw_process', 5);
 
         if ($lock->get()) {
             try {
-                // تغليف العملية داخل Database Transaction لضمان سلامة البيانات
                 return DB::transaction(function () {
-                    // استبعاد العملاء الذين فازوا مسبقاً
-                    // دالة doesntHave تبحث عن العملاء الذين ليس لديهم سجل مرتبط في علاقة lotteryDraw
-                    // هذه الدالة تتعامل مع الـ SoftDeletes بذكاء (العميل الذي تم حذف سحبه سيعود مؤهلاً)
+                    // استبعاد العملاء الذين لديهم سجل فوز نشط (غير محذوف SoftDeleted)
                     $winner = Client::doesntHave('lotteryDraw')
                         ->inRandomOrder()
                         ->first();
 
                     if (!$winner) {
-                        throw new Exception('لا يوجد عملاء متاحين للسحب. إما أن الجميع فازوا مسبقاً أو لا يوجد عملاء مسجلين.');
+                        throw new Exception('لا يوجد عملاء متاحين للسحب حالياً.');
                     }
 
-                    // إنشاء سجل الفوز
-                    $draw = LotteryDraw::create([
+                    return LotteryDraw::create([
                         'client_id' => $winner->id,
-                    ]);
-
-                    // تحميل بيانات العميل لارجاعها مباشرة في الـ API
-                    return $draw->load('client');
+                    ])->load('client');
                 });
             } finally {
-                // تحرير القفل فور الانتهاء سواء نجحت العملية أو فشلت
                 $lock->release();
             }
         }
 
-        throw new Exception('هناك عملية سحب تجري حالياً بالفعل، الرجاء الانتظار للحظات.');
+        throw new Exception('هناك عملية سحب تجري حالياً، الرجاء المحاولة مرة أخرى.');
     }
 
     /**
-     * حذف أو إلغاء سحب معين (Soft Delete).
+     * حذف أو إلغاء سحب معين.
      *
      * @param LotteryDraw $lotteryDraw
      * @return void
