@@ -21,6 +21,17 @@ class ClientController extends Controller
     }
 
     /**
+     * تسجيل عميل جديد عبر الواجهة العامة (خارج لوحة التحكم).
+     */
+    public function publicStore(StoreClientRequest $request): ClientResource
+    {
+        // لا نستخدم Gate::authorize هنا لأن المسار عام ومفتوح للزوار
+        $client = $this->clientService->createClient($request->validated());
+
+        return new ClientResource($client);
+    }
+
+    /**
      * Display a listing of the resource.
      */
     public function index(): AnonymousResourceCollection

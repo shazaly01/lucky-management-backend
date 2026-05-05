@@ -21,9 +21,11 @@ use App\Http\Controllers\Api\LotteryController;
 // --- المسارات العامة (Public Routes) ---
 Route::post('/login', [AuthController::class, 'login']);
 
+// مسار عام لتسجيل النزلاء من خارج لوحة التحكم (للسحب)
+Route::post('/public-clients', [ClientController::class, 'publicStore']);
+
 // --- المسارات المحمية (Protected Routes) ---
 Route::middleware('auth:sanctum')->group(function () {
-
 
     // 2. إدارة النسخ الاحتياطي
     Route::prefix('backups')->name('backups.')->group(function () {
