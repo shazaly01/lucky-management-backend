@@ -6,21 +6,11 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class StoreClientRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
-        // التحقق من الصلاحيات يتم عبر الـ Policies داخل الـ Controller
-        // لذا نسمح بالمرور من هنا
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
         return [
@@ -30,17 +20,26 @@ class StoreClientRequest extends FormRequest
         ];
     }
 
-    /**
-     * Get custom attributes for validator errors.
-     *
-     * @return array<string, string>
-     */
     public function attributes(): array
     {
         return [
             'name' => 'اسم العميل',
             'phone' => 'رقم الهاتف',
             'image' => 'الصورة الشخصية',
+        ];
+    }
+
+    /**
+     * تخصيص رسائل الخطأ باللغة العربية
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'phone.unique' => 'رقم الهاتف مسجل لدينا مسبقاً، الرجاء إدخال رقم آخر.',
+            // يمكنك إضافة المزيد من الرسائل المخصصة هنا إذا أردت مستقبلاً مثل:
+            // 'name.required' => 'حقل الاسم مطلوب ولا يمكن تركه فارغاً.',
         ];
     }
 }
